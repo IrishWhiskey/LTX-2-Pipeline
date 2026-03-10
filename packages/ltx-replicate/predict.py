@@ -1,15 +1,12 @@
 """Cog predictor for LTX-2.3 distilled text-to-video pipeline."""
 
 import random
+import subprocess
 import tempfile
 
 import torch
 from cog import BasePredictor, Input, Path
 from huggingface_hub import hf_hub_download, snapshot_download
-
-from ltx_core.model.video_vae import TilingConfig, get_video_chunks_number
-from ltx_pipelines.distilled import DistilledPipeline
-from ltx_pipelines.utils.media_io import encode_video
 
 WEIGHTS_DIR = "/weights"
 HF_MODEL_REPO = "Lightricks/LTX-2.3"
@@ -18,7 +15,28 @@ HF_GEMMA_REPO = "google/gemma-3-12b-it-qat-q4_0-unquantized"
 
 class Predictor(BasePredictor):
     def setup(self) -> None:
-        """Download model weights and instantiate the pipeline."""
+        """Install local packages, download model weights, and instantiate the pipeline."""
+        # ltx-core and ltx-pipelines live in the monorepo source tree.
+        # /src is populated by Cog after the image is built, so we install
+        # them here rather than in cog.yaml's `run` section.
+        subprocess.run(
+            [
+                "pip",
+                "install",
+                "/src/packages/ltx-core",
+                "/src/packages/ltx-pipelines",
+            ],
+            check=True,
+        )
+
+        from ltx_core.model.video_vae import TilingConfig, get_video_chunks_number
+        from ltx_pipelines.distilled import DistilledPipeline
+        from ltx_pipelines.utils.media_io import encode_video
+
+        self._TilingConfig = TilingConfig
+        self._get_video_chunks_number = get_video_chunks_number
+        self._encode_video = encode_video
+
         hf_hub_download(
             HF_MODEL_REPO,
             "ltx-2.3-22b-distilled.safetensors",
@@ -92,16 +110,16 @@ class Predictor(BasePredictor):
             num_frames=num_frames,
             frame_rate=frame_rate,
             images=[],
-            tiling_config=TilingConfig.default(),
+            tiling_config=self._TilingConfig.default(),
             enhance_prompt=enhance_prompt,
         )
 
-        video_chunks_number = get_video_chunks_number(
-            num_frames, TilingConfig.default()
+        video_chunks_number = self._get_video_chunks_number(
+            num_frames, self._TilingConfig.default()
         )
 
         output_path = tempfile.mktemp(suffix=".mp4")
-        encode_video(
+        self._encode_video(
             video=video_iterator,
             fps=int(frame_rate),
             audio=audio,

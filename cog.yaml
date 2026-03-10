@@ -7,7 +7,4 @@ build:
     - "libgl1"
     - "libglib2.0-0"
   python_requirements: "packages/ltx-replicate/requirements.txt"
-  run:
-    - pip install /src/packages/ltx-core
-    - pip install /src/packages/ltx-pipelines
 predict: "packages/ltx-replicate/predict.py:Predictor"
