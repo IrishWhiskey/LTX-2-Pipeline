@@ -1,0 +1,28 @@
+2026-03-10T17:53:33.995849Z  INFO ralph: Creating scratchpad directory: /home/ubuntu/Desktop/dev/LTX-2-Pipeline/custom-replicate-pipeline/.agent
+2026-03-10T17:53:34.101234Z  INFO ralph_core::event_loop: Memory injection check: enabled=true, inject=Auto, workspace_root="/home/ubuntu/Desktop/dev/LTX-2-Pipeline/custom-replicate-pipeline"
+2026-03-10T17:53:34.101254Z  INFO ralph_core::event_loop: Looking for memories at: "/home/ubuntu/Desktop/dev/LTX-2-Pipeline/custom-replicate-pipeline/.ralph/agent/memories.md" (exists: false)
+2026-03-10T17:53:34.101262Z  INFO ralph_core::event_loop: Successfully loaded 0 memories from store
+2026-03-10T17:53:34.101265Z  INFO ralph_core::event_loop: Memory store is empty - no memories to inject
+2026-03-10T17:55:43.123921Z  INFO ralph_core::event_loop: Memory injection check: enabled=true, inject=Auto, workspace_root="/home/ubuntu/Desktop/dev/LTX-2-Pipeline/custom-replicate-pipeline"
+2026-03-10T17:55:43.124298Z  INFO ralph_core::event_loop: Looking for memories at: "/home/ubuntu/Desktop/dev/LTX-2-Pipeline/custom-replicate-pipeline/.ralph/agent/memories.md" (exists: false)
+2026-03-10T17:55:43.124308Z  INFO ralph_core::event_loop: Successfully loaded 0 memories from store
+2026-03-10T17:55:43.124312Z  INFO ralph_core::event_loop: Memory store is empty - no memories to inject
+2026-03-10T17:55:43.124386Z  INFO ralph_core::event_loop: Injecting ready tasks (1 ready, 4 open, 0 closed) into prompt
+2026-03-10T17:55:43.124400Z  WARN ralph::loop_runner: Failed to create backend from hat configuration for 'designer': custom backend requires a command to be specified. Falling back to global backend.
+2026-03-10T18:00:04.275481Z  INFO ralph_core::event_loop: Memory injection check: enabled=true, inject=Auto, workspace_root="/home/ubuntu/Desktop/dev/LTX-2-Pipeline/custom-replicate-pipeline"
+2026-03-10T18:00:04.275515Z  INFO ralph_core::event_loop: Looking for memories at: "/home/ubuntu/Desktop/dev/LTX-2-Pipeline/custom-replicate-pipeline/.ralph/agent/memories.md" (exists: false)
+2026-03-10T18:00:04.275527Z  INFO ralph_core::event_loop: Successfully loaded 0 memories from store
+2026-03-10T18:00:04.275532Z  INFO ralph_core::event_loop: Memory store is empty - no memories to inject
+2026-03-10T18:00:04.275619Z  INFO ralph_core::event_loop: Injecting ready tasks (1 ready, 4 open, 0 closed) into prompt
+2026-03-10T18:01:48.219291Z  INFO ralph_core::event_loop: Memory injection check: enabled=true, inject=Auto, workspace_root="/home/ubuntu/Desktop/dev/LTX-2-Pipeline/custom-replicate-pipeline"
+2026-03-10T18:01:48.219313Z  INFO ralph_core::event_loop: Looking for memories at: "/home/ubuntu/Desktop/dev/LTX-2-Pipeline/custom-replicate-pipeline/.ralph/agent/memories.md" (exists: false)
+2026-03-10T18:01:48.219321Z  INFO ralph_core::event_loop: Successfully loaded 0 memories from store
+2026-03-10T18:01:48.219325Z  INFO ralph_core::event_loop: Memory store is empty - no memories to inject
+2026-03-10T18:01:48.219380Z  INFO ralph_core::event_loop: Injecting ready tasks (1 ready, 4 open, 0 closed) into prompt
+2026-03-10T18:01:48.219389Z  WARN ralph::loop_runner: Failed to create backend from hat configuration for 'developer': custom backend requires a command to be specified. Falling back to global backend.
+2026-03-10T18:04:16.264295Z  INFO ralph_core::event_loop: Memory injection check: enabled=true, inject=Auto, workspace_root="/home/ubuntu/Desktop/dev/LTX-2-Pipeline/custom-replicate-pipeline"
+2026-03-10T18:04:16.264329Z  INFO ralph_core::event_loop: Looking for memories at: "/home/ubuntu/Desktop/dev/LTX-2-Pipeline/custom-replicate-pipeline/.ralph/agent/memories.md" (exists: false)
+2026-03-10T18:04:16.264349Z  INFO ralph_core::event_loop: Successfully loaded 0 memories from store
+2026-03-10T18:04:16.264354Z  INFO ralph_core::event_loop: Memory store is empty - no memories to inject
+2026-03-10T18:04:16.264431Z  INFO ralph_core::event_loop: Injecting ready tasks (1 ready, 1 open, 3 closed) into prompt
+2026-03-10T18:04:51.797787Z  INFO ralph_tui::app: Ctrl+C detected, signaling main loop
