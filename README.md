@@ -108,6 +108,7 @@ This repository is organized as a monorepo with three main packages:
 * **[ltx-core](packages/ltx-core/)** - Core model implementation, inference stack, and utilities
 * **[ltx-pipelines](packages/ltx-pipelines/)** - High-level pipeline implementations for text-to-video, image-to-video, and other generation modes
 * **[ltx-trainer](packages/ltx-trainer/)** - Training and fine-tuning tools for LoRA, full fine-tuning, and IC-LoRA
+* **[ltx-replicate](packages/ltx-replicate/)** - Cog/Replicate deployment wrapper for the distilled text-to-video pipeline
 
 Each package has its own README and documentation. See the [Documentation](#-documentation) section below.
 
@@ -118,3 +119,4 @@ Each package includes comprehensive documentation:
 * **[LTX-Core README](packages/ltx-core/README.md)** - Core model implementation, inference stack, and utilities
 * **[LTX-Pipelines README](packages/ltx-pipelines/README.md)** - High-level pipeline implementations and usage guides
 * **[LTX-Trainer README](packages/ltx-trainer/README.md)** - Training and fine-tuning documentation with detailed guides
+* **[LTX-Replicate README](packages/ltx-replicate/README.md)** - Cog/Replicate deployment: build, push, and API reference
