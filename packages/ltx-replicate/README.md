@@ -27,9 +27,9 @@ All Python dependencies are declared in [`cog.yaml`](cog.yaml) and are installed
 
 1. Install the Cog CLI:
    ```bash
-   sudo curl -o /usr/local/bin/cog -L https://github.com/replicate/cog/releases/latest/download/cog_$(uname -s)_$(uname -m)
-   sudo chmod +x /usr/local/bin/cog
+   sh <(curl -fsSL https://cog.run/install.sh)
    ```
+   On macOS you can also use `brew install replicate/tap/cog`.
 
 2. From the repo root, build and push the model from the package directory:
    ```bash
