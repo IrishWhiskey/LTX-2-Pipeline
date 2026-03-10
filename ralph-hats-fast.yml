@@ -15,6 +15,7 @@ hats:
     name: "Designer"
     description: "Creates a design document from requirements. No review gate."
     backend: "gemini-cli"
+    args: ["--model", "gemini-3.1-pro"]
     triggers: ["work.start"]
     publishes: ["design.ready"]
     instructions: |
@@ -46,6 +47,7 @@ hats:
     name: "Developer"
     description: "Implements the approved design using TDD."
     backend: "gemini-cli"
+    args: ["--model", "gemini-3.1-pro"]
     triggers: ["design.ready", "code.rejected"]
     publishes: ["implementation.ready"]
     instructions: |
