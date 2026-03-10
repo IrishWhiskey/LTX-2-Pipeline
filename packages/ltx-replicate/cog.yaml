@@ -1,0 +1,25 @@
+build:
+  gpu: true
+  cuda: "12.4"
+  python_version: "3.11"
+  system_packages:
+    - "ffmpeg"
+    - "libgl1-mesa-glx"
+    - "libglib2.0-0"
+  python_packages:
+    - "torch==2.7.0"
+    - "torchaudio==2.7.0"
+    - "einops>=0.8"
+    - "numpy>=1.26"
+    - "transformers>=4.52"
+    - "safetensors>=0.5"
+    - "accelerate>=1.6"
+    - "scipy>=1.14"
+    - "av>=14.0"
+    - "tqdm>=4.66"
+    - "pillow>=10.0"
+    - "huggingface-hub>=0.27"
+  run:
+    - pip install /src/packages/ltx-core
+    - pip install /src/packages/ltx-pipelines
+predict: "predict.py:Predictor"
