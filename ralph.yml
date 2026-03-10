@@ -1,0 +1,13 @@
+# Ralph Orchestrator - Core Configuration
+# Run: ralph run -c ralph.yml -H ralph-hats.yml -p "Your feature description"
+
+cli:
+  backend: "claude"
+
+event_loop:
+  completion_promise: "LOOP_COMPLETE"
+  max_iterations: 30
+
+core:
+  scratchpad: ".agent/scratchpad.md"
+  specs_dir: "docs/local"
