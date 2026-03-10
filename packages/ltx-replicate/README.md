@@ -25,13 +25,19 @@ All Python dependencies are declared in [`cog.yaml`](cog.yaml) and are installed
 
 ## Deploying to Replicate
 
-1. Install the Cog CLI:
+1. Install Docker:
+   - **Linux:** `curl -fsSL https://get.docker.com | sh`
+   - **macOS:** download [Docker Desktop](https://www.docker.com/products/docker-desktop/) or `brew install --cask docker`
+
+   Start the Docker daemon before continuing (`sudo systemctl start docker` on Linux, or launch the Docker Desktop app on macOS).
+
+2. Install the Cog CLI:
    ```bash
    sh <(curl -fsSL https://cog.run/install.sh)
    ```
    On macOS you can also use `brew install replicate/tap/cog`.
 
-2. From the repo root, build and push the model from the package directory:
+3. From the repo root, build and push the model from the package directory:
    ```bash
    cd packages/ltx-replicate
    cog login
