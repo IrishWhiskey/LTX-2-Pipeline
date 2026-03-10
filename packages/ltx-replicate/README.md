@@ -37,20 +37,18 @@ All Python dependencies are declared in [`cog.yaml`](cog.yaml) and are installed
    ```
    On macOS you can also use `brew install replicate/tap/cog`.
 
-3. From the repo root, build and push the model from the package directory:
+3. From the **repo root**, log in and push:
    ```bash
-   cd packages/ltx-replicate
    cog login
    cog push r8.im/<your-username>/<your-model-name>
    ```
 
-   Cog copies the entire repository into `/src` inside the container (see `cog.yaml`), then installs `ltx-core` and `ltx-pipelines` from the workspace source tree.
+   `cog.yaml` lives at the repo root so that the full monorepo is copied into `/src` inside the container, making `packages/ltx-core` and `packages/ltx-pipelines` available at build time.
 
 ## Running Locally with Cog
 
-Build the image:
+Build the image from the **repo root**:
 ```bash
-cd packages/ltx-replicate
 cog build
 ```
 
@@ -87,9 +85,10 @@ A single `.mp4` file (H.264 video, AAC audio).
 ## Structure
 
 ```
+cog.yaml                          # Cog build configuration (repo root)
 packages/ltx-replicate/
-├── cog.yaml      # Cog build configuration (GPU, CUDA, Python deps)
-└── predict.py    # Cog Predictor class (setup + predict)
+├── requirements.txt              # Python dependencies for the Cog image
+└── predict.py                    # Cog Predictor class (setup + predict)
 ```
 
 `predict.py` contains two methods:
