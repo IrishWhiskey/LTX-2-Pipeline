@@ -4,7 +4,7 @@ build:
   python_version: "3.11"
   system_packages:
     - "ffmpeg"
-    - "libgl1-mesa-glx"
+    - "libgl1"
     - "libglib2.0-0"
   python_requirements: "requirements.txt"
   run:
