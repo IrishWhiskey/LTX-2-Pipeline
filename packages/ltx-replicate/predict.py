@@ -1,15 +1,36 @@
 """Cog predictor for LTX-2.3 distilled text-to-video pipeline."""
 
-import logging
+# === Immediate startup logging (before ANY heavy imports) ===
 import os
-import random
-import subprocess
 import sys
-import tempfile
 import time
 
+_module_load_start = time.time()
+print(f"[predict.py] Module loading started (pid={os.getpid()})", flush=True)
+
+print("[predict.py] Importing stdlib modules...", flush=True)
+import logging
+import random
+import subprocess
+import tempfile
+
+print(f"[predict.py] Stdlib imports done in {time.time() - _module_load_start:.1f}s", flush=True)
+
+print("[predict.py] Importing torch...", flush=True)
+_t0 = time.time()
 import torch
+
+print(f"[predict.py] torch imported in {time.time() - _t0:.1f}s", flush=True)
+
+print("[predict.py] Importing cog...", flush=True)
+_t0 = time.time()
 from cog import BasePredictor, Input, Path
+
+print(f"[predict.py] cog imported in {time.time() - _t0:.1f}s", flush=True)
+print(
+    f"[predict.py] All top-level imports done in {time.time() - _module_load_start:.1f}s",
+    flush=True,
+)
 
 # Configure logging to stdout with timestamps so Replicate captures it
 logging.basicConfig(
@@ -58,9 +79,8 @@ class Predictor(BasePredictor):
                 logger.info(f"  {wf}: EXISTS ({size_gb:.2f} GB)")
             elif exists and os.path.isdir(wf):
                 logger.info(f"  {wf}: EXISTS (directory)")
-                # List contents
                 try:
-                    for item in os.listdir(wf):
+                    for item in sorted(os.listdir(wf)):
                         item_path = os.path.join(wf, item)
                         if os.path.isfile(item_path):
                             size_mb = os.path.getsize(item_path) / (1024**2)
