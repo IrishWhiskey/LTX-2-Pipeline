@@ -7,4 +7,12 @@ build:
     - "libgl1"
     - "libglib2.0-0"
   python_requirements: "packages/ltx-replicate/requirements.txt"
+  run:
+    - command: >-
+        python -c "
+        from huggingface_hub import hf_hub_download, snapshot_download;
+        hf_hub_download('Lightricks/LTX-2.3', 'ltx-2.3-22b-distilled.safetensors', local_dir='/weights');
+        hf_hub_download('Lightricks/LTX-2.3', 'ltx-2.3-spatial-upscaler-x2-1.0.safetensors', local_dir='/weights');
+        snapshot_download('google/gemma-3-12b-it-qat-q4_0-unquantized', local_dir='/weights/gemma-3-12b');
+        "
 predict: "packages/ltx-replicate/predict.py:Predictor"

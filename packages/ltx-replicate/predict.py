@@ -6,7 +6,6 @@ import tempfile
 
 import torch
 from cog import BasePredictor, Input, Path
-from huggingface_hub import hf_hub_download, snapshot_download
 
 WEIGHTS_DIR = "/weights"
 HF_MODEL_REPO = "Lightricks/LTX-2.3"
@@ -15,10 +14,7 @@ HF_GEMMA_REPO = "google/gemma-3-12b-it-qat-q4_0-unquantized"
 
 class Predictor(BasePredictor):
     def setup(self) -> None:
-        """Install local packages, download model weights, and instantiate the pipeline."""
-        # ltx-core and ltx-pipelines live in the monorepo source tree.
-        # /src is populated by Cog after the image is built, so we install
-        # them here rather than in cog.yaml's `run` section.
+        """Install local packages and instantiate the pipeline from baked-in weights."""
         subprocess.run(
             [
                 "pip",
@@ -36,21 +32,6 @@ class Predictor(BasePredictor):
         self._TilingConfig = TilingConfig
         self._get_video_chunks_number = get_video_chunks_number
         self._encode_video = encode_video
-
-        hf_hub_download(
-            HF_MODEL_REPO,
-            "ltx-2.3-22b-distilled.safetensors",
-            local_dir=WEIGHTS_DIR,
-        )
-        hf_hub_download(
-            HF_MODEL_REPO,
-            "ltx-2.3-spatial-upscaler-x2-1.0.safetensors",
-            local_dir=WEIGHTS_DIR,
-        )
-        snapshot_download(
-            HF_GEMMA_REPO,
-            local_dir=f"{WEIGHTS_DIR}/gemma-3-12b",
-        )
 
         self.pipeline = DistilledPipeline(
             distilled_checkpoint_path=f"{WEIGHTS_DIR}/ltx-2.3-22b-distilled.safetensors",
