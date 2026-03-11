@@ -1,4 +1,5 @@
 import logging
+import time
 from dataclasses import replace
 from functools import partial
 from typing import Callable
@@ -54,7 +55,11 @@ def euler_denoising_loop(
         A pair ``(video_state, audio_state)`` containing the final video and
         audio latent states after completing the denoising loop.
     """
+    n_steps = len(sigmas) - 1
+    logger.info(f"euler_denoising_loop: {n_steps} steps, sigmas={sigmas.tolist()}")
+    loop_start = time.time()
     for step_idx, _ in enumerate(tqdm(sigmas[:-1])):
+        t0 = time.time()
         denoised_video, denoised_audio = denoise_fn(video_state, audio_state, sigmas, step_idx)
 
         denoised_video = post_process_latent(denoised_video, video_state.denoise_mask, video_state.clean_latent)
@@ -62,7 +67,9 @@ def euler_denoising_loop(
 
         video_state = replace(video_state, latent=stepper.step(video_state.latent, denoised_video, sigmas, step_idx))
         audio_state = replace(audio_state, latent=stepper.step(audio_state.latent, denoised_audio, sigmas, step_idx))
+        logger.info(f"  Step {step_idx+1}/{n_steps} done in {time.time() - t0:.1f}s (sigma={sigmas[step_idx]:.4f})")
 
+    logger.info(f"euler_denoising_loop complete in {time.time() - loop_start:.1f}s")
     return (video_state, audio_state)
 
 

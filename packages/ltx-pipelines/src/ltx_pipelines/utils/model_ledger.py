@@ -1,6 +1,10 @@
+import logging
+import time
 from dataclasses import replace
 
 import torch
+
+logger = logging.getLogger("ltx-pipelines.model_ledger")
 
 from ltx_core.loader import SDOps
 from ltx_core.loader.primitives import LoraPathStrengthAndSDOps
@@ -104,6 +108,13 @@ class ModelLedger:
         registry: Registry | None = None,
         quantization: QuantizationPolicy | None = None,
     ):
+        logger.info("ModelLedger.__init__ starting")
+        logger.info(f"  dtype={dtype}, device={device}")
+        logger.info(f"  checkpoint_path={checkpoint_path}")
+        logger.info(f"  gemma_root_path={gemma_root_path}")
+        logger.info(f"  spatial_upsampler_path={spatial_upsampler_path}")
+        logger.info(f"  loras={loras}")
+        logger.info(f"  quantization={quantization}")
         self.dtype = dtype
         self.device = device
         self.checkpoint_path = checkpoint_path
@@ -113,9 +124,15 @@ class ModelLedger:
         self.registry = registry or DummyRegistry()
         self.quantization = quantization
         self.build_model_builders()
+        logger.info("ModelLedger.__init__ complete")
 
     def build_model_builders(self) -> None:
+        logger.info("build_model_builders starting")
+        t_total = time.time()
+
         if self.checkpoint_path is not None:
+            logger.info("Creating transformer builder...")
+            t0 = time.time()
             self.transformer_builder = Builder(
                 model_path=self.checkpoint_path,
                 model_class_configurator=LTXModelConfigurator,
@@ -123,55 +140,85 @@ class ModelLedger:
                 loras=tuple(self.loras),
                 registry=self.registry,
             )
+            logger.info(f"  transformer builder created in {time.time() - t0:.1f}s")
 
+            logger.info("Creating VAE decoder builder...")
+            t0 = time.time()
             self.vae_decoder_builder = Builder(
                 model_path=self.checkpoint_path,
                 model_class_configurator=VideoDecoderConfigurator,
                 model_sd_ops=VAE_DECODER_COMFY_KEYS_FILTER,
                 registry=self.registry,
             )
+            logger.info(f"  VAE decoder builder created in {time.time() - t0:.1f}s")
 
+            logger.info("Creating VAE encoder builder...")
+            t0 = time.time()
             self.vae_encoder_builder = Builder(
                 model_path=self.checkpoint_path,
                 model_class_configurator=VideoEncoderConfigurator,
                 model_sd_ops=VAE_ENCODER_COMFY_KEYS_FILTER,
                 registry=self.registry,
             )
+            logger.info(f"  VAE encoder builder created in {time.time() - t0:.1f}s")
 
+            logger.info("Creating audio encoder builder...")
+            t0 = time.time()
             self.audio_encoder_builder = Builder[AudioEncoder](
                 model_path=self.checkpoint_path,
                 model_class_configurator=AudioEncoderConfigurator,
                 model_sd_ops=AUDIO_VAE_ENCODER_COMFY_KEYS_FILTER,
                 registry=self.registry,
             )
+            logger.info(f"  audio encoder builder created in {time.time() - t0:.1f}s")
 
+            logger.info("Creating audio decoder builder...")
+            t0 = time.time()
             self.audio_decoder_builder = Builder(
                 model_path=self.checkpoint_path,
                 model_class_configurator=AudioDecoderConfigurator,
                 model_sd_ops=AUDIO_VAE_DECODER_COMFY_KEYS_FILTER,
                 registry=self.registry,
             )
+            logger.info(f"  audio decoder builder created in {time.time() - t0:.1f}s")
 
+            logger.info("Creating vocoder builder...")
+            t0 = time.time()
             self.vocoder_builder = Builder(
                 model_path=self.checkpoint_path,
                 model_class_configurator=VocoderConfigurator,
                 model_sd_ops=VOCODER_COMFY_KEYS_FILTER,
                 registry=self.registry,
             )
+            logger.info(f"  vocoder builder created in {time.time() - t0:.1f}s")
 
             # Embeddings processor only needs the LTX checkpoint (no Gemma weights)
+            logger.info("Creating embeddings processor builder...")
+            t0 = time.time()
             self.embeddings_processor_builder = Builder(
                 model_path=self.checkpoint_path,
                 model_class_configurator=EmbeddingsProcessorConfigurator,
                 model_sd_ops=EMBEDDINGS_PROCESSOR_KEY_OPS,
                 registry=self.registry,
             )
+            logger.info(f"  embeddings processor builder created in {time.time() - t0:.1f}s")
 
             if self.gemma_root_path is not None:
+                logger.info(f"Setting up Gemma text encoder from {self.gemma_root_path}...")
+                t0 = time.time()
+                logger.info("  Loading module_ops_from_gemma_root...")
                 module_ops = module_ops_from_gemma_root(self.gemma_root_path)
+                logger.info(f"  module_ops loaded in {time.time() - t0:.1f}s")
+
+                t0 = time.time()
+                logger.info("  Finding model*.safetensors...")
                 model_folder = find_matching_file(self.gemma_root_path, "model*.safetensors").parent
                 weight_paths = [str(p) for p in model_folder.rglob("*.safetensors")]
+                logger.info(f"  Found {len(weight_paths)} safetensors files in {model_folder}")
+                for wp in weight_paths:
+                    logger.info(f"    {wp}")
 
+                logger.info("Creating text encoder builder...")
                 self.text_encoder_builder = Builder(
                     model_path=tuple(weight_paths),
                     model_class_configurator=GemmaTextEncoderConfigurator,
@@ -179,13 +226,19 @@ class ModelLedger:
                     registry=self.registry,
                     module_ops=(GEMMA_MODEL_OPS, *module_ops),
                 )
+                logger.info(f"  text encoder builder created in {time.time() - t0:.1f}s")
 
         if self.spatial_upsampler_path is not None:
+            logger.info("Creating spatial upsampler builder...")
+            t0 = time.time()
             self.upsampler_builder = Builder(
                 model_path=self.spatial_upsampler_path,
                 model_class_configurator=LatentUpsamplerConfigurator,
                 registry=self.registry,
             )
+            logger.info(f"  upsampler builder created in {time.time() - t0:.1f}s")
+
+        logger.info(f"build_model_builders complete in {time.time() - t_total:.1f}s")
 
     def _target_device(self) -> torch.device:
         if isinstance(self.registry, DummyRegistry) or self.registry is None:
@@ -216,8 +269,10 @@ class ModelLedger:
                 "Transformer not initialized. Please provide a checkpoint path to the ModelLedger constructor."
             )
 
+        logger.info("Building transformer model...")
+        t0 = time.time()
         if self.quantization is None:
-            return (
+            result = (
                 X0Model(self.transformer_builder.build(device=self._target_device(), dtype=self.dtype))
                 .to(self.device)
                 .eval()
@@ -234,7 +289,9 @@ class ModelLedger:
                 module_ops=(*self.transformer_builder.module_ops, *self.quantization.module_ops),
                 model_sd_ops=sd_ops,
             )
-            return X0Model(builder.build(device=self._target_device())).to(self.device).eval()
+            result = X0Model(builder.build(device=self._target_device())).to(self.device).eval()
+        logger.info(f"Transformer built in {time.time() - t0:.1f}s")
+        return result
 
     def video_decoder(self) -> VideoDecoder:
         if not hasattr(self, "vae_decoder_builder"):
@@ -242,7 +299,11 @@ class ModelLedger:
                 "Video decoder not initialized. Please provide a checkpoint path to the ModelLedger constructor."
             )
 
-        return self.vae_decoder_builder.build(device=self._target_device(), dtype=self.dtype).to(self.device).eval()
+        logger.info("Building video decoder...")
+        t0 = time.time()
+        result = self.vae_decoder_builder.build(device=self._target_device(), dtype=self.dtype).to(self.device).eval()
+        logger.info(f"Video decoder built in {time.time() - t0:.1f}s")
+        return result
 
     def video_encoder(self) -> VideoEncoder:
         if not hasattr(self, "vae_encoder_builder"):
@@ -250,7 +311,11 @@ class ModelLedger:
                 "Video encoder not initialized. Please provide a checkpoint path to the ModelLedger constructor."
             )
 
-        return self.vae_encoder_builder.build(device=self._target_device(), dtype=self.dtype).to(self.device).eval()
+        logger.info("Building video encoder...")
+        t0 = time.time()
+        result = self.vae_encoder_builder.build(device=self._target_device(), dtype=self.dtype).to(self.device).eval()
+        logger.info(f"Video encoder built in {time.time() - t0:.1f}s")
+        return result
 
     def text_encoder(self) -> GemmaTextEncoder:
         if not hasattr(self, "text_encoder_builder"):
@@ -259,7 +324,11 @@ class ModelLedger:
                 "ModelLedger constructor."
             )
 
-        return self.text_encoder_builder.build(device=self._target_device(), dtype=self.dtype).to(self.device).eval()
+        logger.info("Building text encoder (Gemma)...")
+        t0 = time.time()
+        result = self.text_encoder_builder.build(device=self._target_device(), dtype=self.dtype).to(self.device).eval()
+        logger.info(f"Text encoder built in {time.time() - t0:.1f}s")
+        return result
 
     def gemma_embeddings_processor(self) -> EmbeddingsProcessor:
         if not hasattr(self, "embeddings_processor_builder"):
@@ -267,11 +336,15 @@ class ModelLedger:
                 "Embeddings processor not initialized. Please provide a checkpoint path to the ModelLedger constructor."
             )
 
-        return (
+        logger.info("Building embeddings processor...")
+        t0 = time.time()
+        result = (
             self.embeddings_processor_builder.build(device=self._target_device(), dtype=self.dtype)
             .to(self.device)
             .eval()
         )
+        logger.info(f"Embeddings processor built in {time.time() - t0:.1f}s")
+        return result
 
     def audio_encoder(self) -> AudioEncoder:
         if not hasattr(self, "audio_encoder_builder"):
@@ -279,7 +352,11 @@ class ModelLedger:
                 "Audio encoder not initialized. Please provide a checkpoint path to the ModelLedger constructor."
             )
 
-        return self.audio_encoder_builder.build(device=self._target_device(), dtype=self.dtype).to(self.device).eval()
+        logger.info("Building audio encoder...")
+        t0 = time.time()
+        result = self.audio_encoder_builder.build(device=self._target_device(), dtype=self.dtype).to(self.device).eval()
+        logger.info(f"Audio encoder built in {time.time() - t0:.1f}s")
+        return result
 
     def audio_decoder(self) -> AudioDecoder:
         if not hasattr(self, "audio_decoder_builder"):
@@ -287,7 +364,11 @@ class ModelLedger:
                 "Audio decoder not initialized. Please provide a checkpoint path to the ModelLedger constructor."
             )
 
-        return self.audio_decoder_builder.build(device=self._target_device(), dtype=self.dtype).to(self.device).eval()
+        logger.info("Building audio decoder...")
+        t0 = time.time()
+        result = self.audio_decoder_builder.build(device=self._target_device(), dtype=self.dtype).to(self.device).eval()
+        logger.info(f"Audio decoder built in {time.time() - t0:.1f}s")
+        return result
 
     def vocoder(self) -> Vocoder:
         if not hasattr(self, "vocoder_builder"):
@@ -295,10 +376,18 @@ class ModelLedger:
                 "Vocoder not initialized. Please provide a checkpoint path to the ModelLedger constructor."
             )
 
-        return self.vocoder_builder.build(device=self._target_device(), dtype=self.dtype).to(self.device).eval()
+        logger.info("Building vocoder...")
+        t0 = time.time()
+        result = self.vocoder_builder.build(device=self._target_device(), dtype=self.dtype).to(self.device).eval()
+        logger.info(f"Vocoder built in {time.time() - t0:.1f}s")
+        return result
 
     def spatial_upsampler(self) -> LatentUpsampler:
         if not hasattr(self, "upsampler_builder"):
             raise ValueError("Upsampler not initialized. Please provide upsampler path to the ModelLedger constructor.")
 
-        return self.upsampler_builder.build(device=self._target_device(), dtype=self.dtype).to(self.device).eval()
+        logger.info("Building spatial upsampler...")
+        t0 = time.time()
+        result = self.upsampler_builder.build(device=self._target_device(), dtype=self.dtype).to(self.device).eval()
+        logger.info(f"Spatial upsampler built in {time.time() - t0:.1f}s")
+        return result

@@ -84,33 +84,75 @@ class SingleGPUModelBuilder(Generic[ModelType], ModelBuilderProtocol[ModelType],
         return retval
 
     def build(self, device: torch.device | None = None, dtype: torch.dtype | None = None) -> ModelType:
+        import time
+
+        build_start = time.time()
         device = torch.device("cuda") if device is None else device
+        model_name = self.model_class_configurator.__name__
+        logger.info(f"[{model_name}] build() starting (device={device}, dtype={dtype})")
+
+        logger.info(f"[{model_name}] Loading model config from metadata...")
+        t0 = time.time()
         config = self.model_config()
+        logger.info(f"[{model_name}] Config loaded in {time.time() - t0:.1f}s")
+
+        logger.info(f"[{model_name}] Creating meta model...")
+        t0 = time.time()
         meta_model = self.meta_model(config, self.module_ops)
+        logger.info(f"[{model_name}] Meta model created in {time.time() - t0:.1f}s")
+
         model_paths = list(self.model_path) if isinstance(self.model_path, tuple) else [self.model_path]
+        logger.info(f"[{model_name}] Loading state dict from {len(model_paths)} file(s)...")
+        for p in model_paths:
+            logger.info(f"[{model_name}]   {p}")
+        t0 = time.time()
         model_state_dict = self.load_sd(model_paths, sd_ops=self.model_sd_ops, registry=self.registry, device=device)
+        logger.info(
+            f"[{model_name}] State dict loaded in {time.time() - t0:.1f}s "
+            f"({len(model_state_dict.sd)} keys)"
+        )
 
         lora_strengths = [lora.strength for lora in self.loras]
         if not lora_strengths or (min(lora_strengths) == 0 and max(lora_strengths) == 0):
+            logger.info(f"[{model_name}] No active LoRAs, loading state dict directly...")
+            t0 = time.time()
             sd = model_state_dict.sd
             if dtype is not None:
                 sd = {key: value.to(dtype=dtype) for key, value in model_state_dict.sd.items()}
             meta_model.load_state_dict(sd, strict=False, assign=True)
-            return self._return_model(meta_model, device)
+            logger.info(f"[{model_name}] State dict loaded into model in {time.time() - t0:.1f}s")
+            t0 = time.time()
+            result = self._return_model(meta_model, device)
+            logger.info(
+                f"[{model_name}] Model moved to {device} in {time.time() - t0:.1f}s"
+            )
+            logger.info(f"[{model_name}] build() complete in {time.time() - build_start:.1f}s")
+            return result
 
+        logger.info(f"[{model_name}] Loading {len(self.loras)} LoRA(s)...")
+        t0 = time.time()
         lora_state_dicts = [
             self.load_sd([lora.path], sd_ops=lora.sd_ops, registry=self.registry, device=self.lora_load_device)
             for lora in self.loras
         ]
+        logger.info(f"[{model_name}] LoRA state dicts loaded in {time.time() - t0:.1f}s")
+
         lora_sd_and_strengths = [
             LoraStateDictWithStrength(sd, strength)
             for sd, strength in zip(lora_state_dicts, lora_strengths, strict=True)
         ]
+
+        logger.info(f"[{model_name}] Applying LoRAs...")
+        t0 = time.time()
         final_sd = apply_loras(
             model_sd=model_state_dict,
             lora_sd_and_strengths=lora_sd_and_strengths,
             dtype=dtype,
             destination_sd=model_state_dict if isinstance(self.registry, DummyRegistry) else None,
         )
+        logger.info(f"[{model_name}] LoRAs applied in {time.time() - t0:.1f}s")
+
         meta_model.load_state_dict(final_sd.sd, strict=False, assign=True)
-        return self._return_model(meta_model, device)
+        result = self._return_model(meta_model, device)
+        logger.info(f"[{model_name}] build() complete in {time.time() - build_start:.1f}s")
+        return result

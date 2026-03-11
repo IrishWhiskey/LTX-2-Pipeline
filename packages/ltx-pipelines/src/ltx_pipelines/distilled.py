@@ -1,4 +1,5 @@
 import logging
+import time
 from collections.abc import Iterator
 
 import torch
@@ -37,6 +38,7 @@ from ltx_pipelines.utils.media_io import encode_video
 from ltx_pipelines.utils.types import PipelineComponents
 
 device = get_device()
+logger = logging.getLogger("ltx-pipelines.distilled")
 
 
 class DistilledPipeline:
@@ -55,9 +57,19 @@ class DistilledPipeline:
         device: torch.device = device,
         quantization: QuantizationPolicy | None = None,
     ):
+        logger.info("DistilledPipeline.__init__ starting")
+        logger.info(f"  distilled_checkpoint_path={distilled_checkpoint_path}")
+        logger.info(f"  gemma_root={gemma_root}")
+        logger.info(f"  spatial_upsampler_path={spatial_upsampler_path}")
+        logger.info(f"  loras={loras}")
+        logger.info(f"  device={device}")
+        logger.info(f"  quantization={quantization}")
+
         self.device = device
         self.dtype = torch.bfloat16
 
+        logger.info("Creating ModelLedger...")
+        t0 = time.time()
         self.model_ledger = ModelLedger(
             dtype=self.dtype,
             device=device,
@@ -67,11 +79,16 @@ class DistilledPipeline:
             loras=loras,
             quantization=quantization,
         )
+        logger.info(f"ModelLedger created in {time.time() - t0:.1f}s")
 
+        logger.info("Creating PipelineComponents...")
+        t0 = time.time()
         self.pipeline_components = PipelineComponents(
             dtype=self.dtype,
             device=device,
         )
+        logger.info(f"PipelineComponents created in {time.time() - t0:.1f}s")
+        logger.info("DistilledPipeline.__init__ complete")
 
     def __call__(
         self,
@@ -85,6 +102,9 @@ class DistilledPipeline:
         tiling_config: TilingConfig | None = None,
         enhance_prompt: bool = False,
     ) -> tuple[Iterator[torch.Tensor], Audio]:
+        call_start = time.time()
+        logger.info("DistilledPipeline.__call__ starting")
+        logger.info(f"  prompt={prompt!r}, seed={seed}, {height}x{width}, frames={num_frames}, fps={frame_rate}")
         assert_resolution(height=height, width=width, is_two_stage=True)
 
         generator = torch.Generator(device=self.device).manual_seed(seed)
@@ -92,18 +112,30 @@ class DistilledPipeline:
         stepper = EulerDiffusionStep()
         dtype = torch.bfloat16
 
+        logger.info("Encoding prompts (text encoder + embeddings processor)...")
+        t0 = time.time()
         (ctx_p,) = encode_prompts(
             [prompt],
             self.model_ledger,
             enhance_first_prompt=enhance_prompt,
             enhance_prompt_image=images[0][0] if len(images) > 0 else None,
         )
+        logger.info(f"Prompt encoding done in {time.time() - t0:.1f}s")
         video_context, audio_context = ctx_p.video_encoding, ctx_p.audio_encoding
 
         # Stage 1: Initial low resolution video generation.
+        logger.info("Loading video encoder...")
+        t0 = time.time()
         video_encoder = self.model_ledger.video_encoder()
+        logger.info(f"Video encoder loaded in {time.time() - t0:.1f}s")
+
+        logger.info("Loading transformer...")
+        t0 = time.time()
         transformer = self.model_ledger.transformer()
+        logger.info(f"Transformer loaded in {time.time() - t0:.1f}s")
+
         stage_1_sigmas = torch.Tensor(DISTILLED_SIGMA_VALUES).to(self.device)
+        logger.info(f"Stage 1 sigmas: {DISTILLED_SIGMA_VALUES}")
 
         def denoising_loop(
             sigmas: torch.Tensor, video_state: LatentState, audio_state: LatentState, stepper: DiffusionStepProtocol
@@ -127,6 +159,8 @@ class DistilledPipeline:
             height=height // 2,
             fps=frame_rate,
         )
+        logger.info(f"Stage 1 output shape: {stage_1_output_shape}")
+
         stage_1_conditionings = combined_image_conditionings(
             images=images,
             height=stage_1_output_shape.height,
@@ -136,6 +170,8 @@ class DistilledPipeline:
             device=self.device,
         )
 
+        logger.info("Stage 1: Denoising audio+video...")
+        t0 = time.time()
         video_state, audio_state = denoise_audio_video(
             output_shape=stage_1_output_shape,
             conditionings=stage_1_conditionings,
@@ -147,17 +183,23 @@ class DistilledPipeline:
             dtype=dtype,
             device=self.device,
         )
+        logger.info(f"Stage 1 denoising done in {time.time() - t0:.1f}s")
 
         # Stage 2: Upsample and refine the video at higher resolution with distilled LORA.
+        logger.info("Loading spatial upsampler and upscaling video...")
+        t0 = time.time()
         upscaled_video_latent = upsample_video(
             latent=video_state.latent[:1], video_encoder=video_encoder, upsampler=self.model_ledger.spatial_upsampler()
         )
+        logger.info(f"Upsampling done in {time.time() - t0:.1f}s")
 
         torch.cuda.synchronize()
         cleanup_memory()
 
         stage_2_sigmas = torch.Tensor(STAGE_2_DISTILLED_SIGMA_VALUES).to(self.device)
         stage_2_output_shape = VideoPixelShape(batch=1, frames=num_frames, width=width, height=height, fps=frame_rate)
+        logger.info(f"Stage 2 output shape: {stage_2_output_shape}")
+
         stage_2_conditionings = combined_image_conditionings(
             images=images,
             height=stage_2_output_shape.height,
@@ -166,6 +208,9 @@ class DistilledPipeline:
             dtype=dtype,
             device=self.device,
         )
+
+        logger.info("Stage 2: Denoising audio+video...")
+        t0 = time.time()
         video_state, audio_state = denoise_audio_video(
             output_shape=stage_2_output_shape,
             conditionings=stage_2_conditionings,
@@ -180,18 +225,28 @@ class DistilledPipeline:
             initial_video_latent=upscaled_video_latent,
             initial_audio_latent=audio_state.latent,
         )
+        logger.info(f"Stage 2 denoising done in {time.time() - t0:.1f}s")
 
         torch.cuda.synchronize()
         del transformer
         del video_encoder
         cleanup_memory()
 
+        logger.info("Decoding video with VAE...")
+        t0 = time.time()
         decoded_video = vae_decode_video(
             video_state.latent, self.model_ledger.video_decoder(), tiling_config, generator
         )
+        logger.info(f"Video VAE decode initiated in {time.time() - t0:.1f}s")
+
+        logger.info("Decoding audio with VAE + vocoder...")
+        t0 = time.time()
         decoded_audio = vae_decode_audio(
             audio_state.latent, self.model_ledger.audio_decoder(), self.model_ledger.vocoder()
         )
+        logger.info(f"Audio decode done in {time.time() - t0:.1f}s")
+
+        logger.info(f"DistilledPipeline.__call__ total: {time.time() - call_start:.1f}s")
         return decoded_video, decoded_audio
 
 

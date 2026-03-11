@@ -1,10 +1,14 @@
 import json
+import logging
+import time
 
 import safetensors
 import torch
 
 from ltx_core.loader.primitives import StateDict, StateDictLoader
 from ltx_core.loader.sd_ops import SDOps
+
+logger = logging.getLogger("ltx-core.sft_loader")
 
 
 class SafetensorsStateDictLoader(StateDictLoader):
@@ -26,10 +30,15 @@ class SafetensorsStateDictLoader(StateDictLoader):
         dtype = set()
         device = device or torch.device("cpu")
         model_paths = path if isinstance(path, list) else [path]
-        for shard_path in model_paths:
+        logger.info(f"Loading safetensors from {len(model_paths)} shard(s) to {device}")
+        t_total = time.time()
+        for i, shard_path in enumerate(model_paths):
+            t0 = time.time()
+            logger.info(f"  Loading shard {i+1}/{len(model_paths)}: {shard_path}")
             with safetensors.safe_open(shard_path, framework="pt", device=str(device)) as f:
                 safetensor_keys = f.keys()
-                for name in safetensor_keys:
+                logger.info(f"    {len(list(safetensor_keys))} keys in shard")
+                for name in f.keys():
                     expected_name = name if sd_ops is None else sd_ops.apply_to_key(name)
                     if expected_name is None:
                         continue
@@ -41,7 +50,12 @@ class SafetensorsStateDictLoader(StateDictLoader):
                         size += value.nbytes
                         dtype.add(value.dtype)
                         sd[key] = value
+            logger.info(f"    Shard loaded in {time.time() - t0:.1f}s ({size / 1024**3:.2f} GB so far)")
 
+        logger.info(
+            f"  Total: {len(sd)} keys, {size / 1024**3:.2f} GB, "
+            f"dtypes={dtype}, loaded in {time.time() - t_total:.1f}s"
+        )
         return StateDict(sd=sd, device=device, size=size, dtype=dtype)
 
 

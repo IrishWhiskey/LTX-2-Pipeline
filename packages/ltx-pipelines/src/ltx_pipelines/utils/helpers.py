@@ -1,8 +1,11 @@
 import gc
 import logging
+import time
 from dataclasses import replace
 
 import torch
+
+logger = logging.getLogger("ltx-pipelines.helpers")
 
 from ltx_core.components.guiders import MultiModalGuider, MultiModalGuiderFactory
 from ltx_core.components.noisers import Noiser
@@ -68,21 +71,48 @@ def encode_prompts(
     Returns:
         List of EmbeddingsProcessorOutput, one per prompt.
     """
+    logger.info("encode_prompts starting")
+    logger.info(f"  prompts={prompts!r}, enhance_first_prompt={enhance_first_prompt}")
+
+    logger.info("  Loading text encoder...")
+    t0 = time.time()
     text_encoder = model_ledger.text_encoder()
+    logger.info(f"  Text encoder loaded in {time.time() - t0:.1f}s")
+
     if enhance_first_prompt:
+        logger.info("  Enhancing first prompt...")
+        t0 = time.time()
         prompts = list(prompts)
         prompts[0] = generate_enhanced_prompt(text_encoder, prompts[0], enhance_prompt_image, seed=enhance_prompt_seed)
+        logger.info(f"  Prompt enhanced in {time.time() - t0:.1f}s: {prompts[0]!r}")
+
+    logger.info(f"  Encoding {len(prompts)} prompt(s)...")
+    t0 = time.time()
     raw_outputs = [text_encoder.encode(p) for p in prompts]
+    logger.info(f"  Prompts encoded in {time.time() - t0:.1f}s")
+
     torch.cuda.synchronize()
     del text_encoder
+    logger.info("  Text encoder freed, cleaning up memory...")
+    t0 = time.time()
     cleanup_memory()
+    logger.info(f"  Memory cleanup done in {time.time() - t0:.1f}s")
 
+    logger.info("  Loading embeddings processor...")
+    t0 = time.time()
     embeddings_processor = model_ledger.gemma_embeddings_processor()
+    logger.info(f"  Embeddings processor loaded in {time.time() - t0:.1f}s")
+
+    logger.info("  Processing hidden states...")
+    t0 = time.time()
     results: list[EmbeddingsProcessorOutput] = [
         embeddings_processor.process_hidden_states(hs, mask) for hs, mask in raw_outputs
     ]
+    logger.info(f"  Hidden states processed in {time.time() - t0:.1f}s")
+
     del embeddings_processor
     cleanup_memory()
+    logger.info("encode_prompts complete")
     return results
 
 
