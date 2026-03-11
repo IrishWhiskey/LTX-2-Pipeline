@@ -97,6 +97,40 @@ For additional guidance on writing a prompt please refer to <https://ltx.video/b
 
 LTX-2 pipelines support automatic prompt enhancement via an `enhance_prompt` parameter.
 
+## 🔮 Run Predictions via Replicate API
+
+A lightweight Python CLI (`run.py`) is included for running predictions against the deployed Replicate model.
+
+### Setup
+
+```bash
+pip install replicate
+```
+
+Create a `.env.local` file with your [Replicate API token](https://replicate.com/account/api-tokens):
+
+```
+REPLICATE_API_TOKEN=r8_your_token_here
+```
+
+### Usage
+
+```bash
+# Run with prompt from test_prompt.txt
+python3 run.py
+
+# Run with an inline prompt
+python3 run.py "A cinematic shot of a mountain at sunset"
+
+# Wait for the prediction to complete and print the output URL
+python3 run.py --wait "A cat sitting on a windowsill"
+
+# Customize generation parameters
+python3 run.py --width 1024 --height 576 --num-frames 49 --seed 42 "Your prompt"
+```
+
+Available options: `--width`, `--height`, `--num-frames`, `--frame-rate`, `--seed`, `--enhance-prompt`, `--wait`.
+
 ## 🔌 ComfyUI Integration
 
 To use our model with ComfyUI, please follow the instructions at <https://github.com/Lightricks/ComfyUI-LTXVideo/>.
